@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MoodMusic</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink: #1a1a18;
+  --ink2: #3d3d38;
+  --ink3: #888880;
+  --paper: #f5f2eb;
+  --paper2: #ece9e0;
+  --rule: #d4d0c4;
+  --green: #1db954;
+  --red: #c0392b;
+}
+
+html { font-size: 16px; }
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+/* ── layout ── */
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
+
+/* ── sidebar ── */
+.sidebar {
+  border-right: 1px solid var(--rule);
+  padding: 2rem 1.5rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.wordmark {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.wordmark em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--ink3);
+}
+
+.sidebar-meta {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--ink3);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.status-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+/* mood nav */
+.mood-nav { flex: 1; }
+.nav-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 0.75rem;
+}
+
+.mood-list { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+
+.mood-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s;
+  border: 1px solid transparent;
+}
+.mood-item:hover { background: var(--paper2); }
+.mood-item.active {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.mood-item.active .mood-bpm { color: var(--paper2); }
+
+.mood-left { display: flex; align-items: center; gap: 10px; }
+.mood-glyph {
+  width: 28px; height: 28px;
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  background: var(--paper2);
+  flex-shrink: 0;
+}
+.mood-item.active .mood-glyph { background: rgba(255,255,255,0.12); }
+
+.mood-title { font-size: 0.875rem; font-weight: 500; }
+.mood-bpm {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--ink3);
+}
+
+/* config at bottom */
+.config-section { border-top: 1px solid var(--rule); padding-top: 1.25rem; }
+.config-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 0.5rem;
+}
+.config-input {
+  width: 100%;
+  background: var(--paper2);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  color: var(--ink);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  padding: 0.5rem 0.6rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.config-input:focus { border-color: var(--ink2); }
+.config-hint {
+  font-size: 0.68rem;
+  color: var(--ink3);
+  margin-top: 0.4rem;
+  line-height: 1.4;
+}
+.config-hint a { color: var(--ink2); }
+
+/* ── main panel ── */
+.main { padding: 2rem 2.5rem; }
+
+.main-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.header-left h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.header-left h1 em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--ink3);
+}
+.header-sub {
+  font-size: 0.8rem;
+  color: var(--ink3);
+  margin-top: 0.3rem;
+  font-weight: 300;
+}
+
+.fetch-btn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 0.6rem 1.2rem;
+  background: var(--ink);
+  color: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.fetch-btn:hover { background: var(--ink2); border-color: var(--ink2); }
+.fetch-btn:disabled {
+  background: transparent;
+  color: var(--ink3);
+  border-color: var(--rule);
+  cursor: not-allowed;
+}
+
+/* ── track list ── */
+.track-list { display: flex; flex-direction: column; }
+
+.track-row {
+  display: grid;
+  grid-template-columns: 28px 44px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--rule);
+  transition: background 0.1s;
+  border-radius: 3px;
+}
+.track-row:first-child { border-top: 1px solid var(--rule); }
+.track-row:hover { background: var(--paper2); padding-left: 6px; padding-right: 6px; margin: 0 -6px; }
+
+.track-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--ink3);
+  text-align: right;
+}
+.album-art { width: 44px; height: 44px; border-radius: 3px; object-fit: cover; display: block; }
+.art-fallback {
+  width: 44px; height: 44px; border-radius: 3px;
+  background: var(--paper2);
+  border: 1px solid var(--rule);
+}
+
+.track-info { min-width: 0; }
+.track-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+.track-meta {
+  font-size: 0.75rem;
+  color: var(--ink3);
+  margin-top: 2px;
+  font-weight: 300;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.track-dur {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--ink3);
+  min-width: 32px;
+  text-align: right;
+}
+.play-btn {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink2);
+  font-size: 9px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+.play-btn:hover { border-color: var(--ink2); background: var(--ink); color: var(--paper); }
+.play-btn.playing { background: var(--green); border-color: var(--green); color: white; }
+
+.open-link {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--ink3);
+  text-decoration: none;
+  letter-spacing: 0.04em;
+}
+.open-link:hover { color: var(--green); }
+
+/* ── states ── */
+.empty-state {
+  padding: 5rem 0;
+  text-align: center;
+}
+.empty-icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  opacity: 0.3;
+}
+.empty-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.25rem;
+  font-style: italic;
+  color: var(--ink3);
+  margin-bottom: 0.5rem;
+}
+.empty-sub { font-size: 0.8rem; color: var(--ink3); font-weight: 300; }
+
+.loading-state { padding: 4rem 0; }
+.loading-rows { display: flex; flex-direction: column; gap: 0; }
+.skel-row {
+  display: grid;
+  grid-template-columns: 28px 44px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.skel-row:first-child { border-top: 1px solid var(--rule); }
+.skel {
+  background: var(--paper2);
+  border-radius: 3px;
+  height: 12px;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+.skel-sq { height: 44px; border-radius: 3px; }
+@keyframes shimmer {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.error-bar {
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--red);
+  border-radius: 3px;
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  color: var(--ink2);
+  margin-bottom: 1.5rem;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.playlist-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.playlist-count {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+.playlist-mood {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--ink3);
+}
+
+/* ── responsive ── */
+@media (max-width: 700px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--rule);
+    padding: 1.25rem;
+  }
+  .mood-list { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .mood-item { flex: 1; min-width: 120px; }
+  .main { padding: 1.25rem; }
+  .main-header { flex-direction: column; gap: 1rem; }
+  .fetch-btn { width: 100%; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- sidebar -->
+  <aside class="sidebar">
+    <div>
+      <div class="wordmark">Mood<em>music</em></div>
+      <div class="sidebar-meta" style="margin-top:0.5rem;">
+        <span class="status-dot"></span>
+        Spotify Web API
+      </div>
+    </div>
+
+    <nav class="mood-nav">
+      <div class="nav-label">Select mood</div>
+      <ul class="mood-list" id="moodList">
+        <li class="mood-item" data-mood="happy" data-label="Happy" onclick="selectMood(this)">
+          <div class="mood-left">
+            <div class="mood-glyph">☀</div>
+            <span class="mood-title">Happy</span>
+          </div>
+          <span class="mood-bpm">val 0.85</span>
+        </li>
+        <li class="mood-item" data-mood="sad" data-label="Sad" onclick="selectMood(this)">
+          <div class="mood-left">
+            <div class="mood-glyph">♩</div>
+            <span class="mood-title">Sad</span>
+          </div>
+          <span class="mood-bpm">val 0.15</span>
+        </li>
+        <li class="mood-item" data-mood="chill" data-label="Chill" onclick="selectMood(this)">
+          <div class="mood-left">
+            <div class="mood-glyph">≈</div>
+            <span class="mood-title">Chill</span>
+          </div>
+          <span class="mood-bpm">val 0.55</span>
+        </li>
+        <li class="mood-item" data-mood="energetic" data-label="Energetic" onclick="selectMood(this)">
+          <div class="mood-left">
+            <div class="mood-glyph">↯</div>
+            <span class="mood-title">Energetic</span>
+          </div>
+          <span class="mood-bpm">val 0.70</span>
+        </li>
+        <li class="mood-item" data-mood="focus" data-label="Focus" onclick="selectMood(this)">
+          <div class="mood-left">
+            <div class="mood-glyph">◎</div>
+            <span class="mood-title">Focus</span>
+          </div>
+          <span class="mood-bpm">val 0.50</span>
+        </li>
+        <li class="mood-item" data-mood="melancholy" data-label="Melancholy" onclick="selectMood(this)">
+          <div class="mood-left">
+            <div class="mood-glyph">◑</div>
+            <span class="mood-title">Melancholy</span>
+          </div>
+          <span class="mood-bpm">val 0.25</span>
+        </li>
+      </ul>
+    </nav>
+
+    <div class="config-section">
+      <div class="config-label">API endpoint</div>
+      <input class="config-input" type="text" id="apiUrl" value="http://localhost:8000" spellcheck="false" />
+      <div class="config-hint">
+        Run <code>uvicorn main:app --reload</code> in your backend folder.
+        <a href="https://developer.spotify.com/dashboard" target="_blank">Get credentials →</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- main -->
+  <main class="main">
+    <div class="main-header">
+      <div class="header-left">
+        <h1 id="headingTitle">Pick a<em> mood.</em></h1>
+        <div class="header-sub" id="headingSub">Recommendations will appear here.</div>
+      </div>
+      <button class="fetch-btn" id="fetchBtn" onclick="fetchPlaylist()" disabled>
+        Generate playlist
+      </button>
+    </div>
+
+    <div id="errorBox"></div>
+    <div id="content">
+      <div class="empty-state">
+        <div class="empty-icon">♫</div>
+        <div class="empty-title">Nothing playing yet.</div>
+        <div class="empty-sub">Select a mood from the left to get started.</div>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<audio id="player"></audio>
+
+<script>
+let selectedMood = null;
+let activePrevBtn = null;
+
+function selectMood(el) {
+  document.querySelectorAll('.mood-item').forEach(m => m.classList.remove('active'));
+  el.classList.add('active');
+  selectedMood = el.dataset.mood;
+  const label = el.dataset.label;
+
+  document.getElementById('headingTitle').innerHTML = `${label}<em> vibes.</em>`;
+  document.getElementById('headingSub').textContent = `Spotify recommendations for ${label.toLowerCase()} mood.`;
+  const btn = document.getElementById('fetchBtn');
+  btn.disabled = false;
+  btn.textContent = 'Generate playlist';
+}
+
+function fmt(ms) {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function showSkeleton() {
+  let html = '<div class="loading-rows">';
+  for (let i = 0; i < 10; i++) {
+    const w1 = 40 + Math.floor(Math.random() * 40);
+    const w2 = 25 + Math.floor(Math.random() * 30);
+    html += `
+      <div class="skel-row">
+        <div class="skel" style="width:16px;height:10px;margin-left:auto"></div>
+        <div class="skel skel-sq"></div>
+        <div>
+          <div class="skel" style="width:${w1}%;margin-bottom:6px"></div>
+          <div class="skel" style="width:${w2}%;height:10px"></div>
+        </div>
+        <div class="skel" style="width:28px;height:10px"></div>
+      </div>`;
+  }
+  html += '</div>';
+  document.getElementById('content').innerHTML = html;
+}
+
+function showError(msg) {
+  document.getElementById('errorBox').innerHTML =
+    `<div class="error-bar">Error — ${msg}</div>`;
+}
+
+function clearError() {
+  document.getElementById('errorBox').innerHTML = '';
+}
+
+function stopAudio() {
+  const player = document.getElementById('player');
+  player.pause();
+  if (activePrevBtn) {
+    activePrevBtn.textContent = '▶';
+    activePrevBtn.classList.remove('playing');
+    activePrevBtn = null;
+  }
+}
+
+function togglePreview(btn, url) {
+  const player = document.getElementById('player');
+  if (activePrevBtn === btn) { stopAudio(); return; }
+  stopAudio();
+  player.src = url;
+  player.play();
+  btn.textContent = '■';
+  btn.classList.add('playing');
+  activePrevBtn = btn;
+  player.onended = () => {
+    btn.textContent = '▶';
+    btn.classList.remove('playing');
+    activePrevBtn = null;
+  };
+}
+
+async function fetchPlaylist() {
+  if (!selectedMood) return;
+  clearError();
+  showSkeleton();
+
+  const base = document.getElementById('apiUrl').value.replace(/\/$/, '');
+  const btn = document.getElementById('fetchBtn');
+  btn.disabled = true;
+  btn.textContent = 'Fetching...';
+  stopAudio();
+
+  try {
+    const res = await fetch(`${base}/recommend/${selectedMood}?limit=15`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    renderTracks(data.tracks);
+  } catch (e) {
+    document.getElementById('content').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">⚠</div>
+        <div class="empty-title">Couldn't connect.</div>
+        <div class="empty-sub">Is your backend running at ${base}?</div>
+      </div>`;
+    showError(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Refresh';
+  }
+}
+
+function renderTracks(tracks) {
+  if (!tracks || !tracks.length) {
+    document.getElementById('content').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-title" style="font-style:italic">No results.</div>
+        <div class="empty-sub">Spotify returned nothing. Try a different mood.</div>
+      </div>`;
+    return;
+  }
+
+  let html = `
+    <div class="playlist-meta">
+      <span class="playlist-count">${tracks.length} tracks</span>
+      <span class="playlist-mood">via Spotify recommendations API</span>
+    </div>
+    <div class="track-list">`;
+
+  tracks.forEach((t, i) => {
+    const art = t.album_art
+      ? `<img class="album-art" src="${t.album_art}" alt="" loading="lazy">`
+      : `<div class="art-fallback"></div>`;
+
+    const previewBtn = t.preview_url
+      ? `<button class="play-btn" onclick="togglePreview(this,'${t.preview_url}')" aria-label="Preview">▶</button>`
+      : `<button class="play-btn" disabled style="opacity:0.25;cursor:default">▶</button>`;
+
+    html += `
+      <div class="track-row">
+        <span class="track-num">${i + 1}</span>
+        ${art}
+        <div class="track-info">
+          <div class="track-name">${t.name}</div>
+          <div class="track-meta">${t.artist} · ${t.album}</div>
+        </div>
+        <div class="track-actions">
+          <span class="track-dur">${fmt(t.duration_ms)}</span>
+          ${previewBtn}
+          <a class="open-link" href="${t.spotify_url}" target="_blank" rel="noopener">↗</a>
+        </div>
+      </div>`;
+  });
+
+  html += '</div>';
+  document.getElementById('content').innerHTML = html;
+}
+</script>
+</body>
+</html>
