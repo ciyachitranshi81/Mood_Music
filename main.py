@@ -16,8 +16,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-CLIENT_ID = os.getenv("51ac7b76ac004d2bbd5eb29ef1a0d515")
-CLIENT_SECRET = os.getenv("4a6e0e9a374a4b7092cbf27ccdc82887")
+CLIENT_ID = os.getenv("client_id")
+CLIENT_SECRET = os.getenv("client_secret")
 
 # Mood → Spotify audio feature targets
 MOOD_PARAMS = {
