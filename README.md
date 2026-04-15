@@ -1,86 +1,132 @@
 # MoodMusic
 
-AI-powered mood-based music recommendations using the Spotify Web API.
+> Spotify-powered mood-based music recommendations.
 
-## Project Structure
+Pick a mood -> we map it to Spotify's audio features (valence, energy, danceability) -> get a curated playlist of real tracks.
 
-```
-moodmusic/
-├── backend/
-│   ├── main.py          ← FastAPI server
-│   ├── requirements.txt
-│   └── .env             ← your Spotify credentials (create this)
-└── frontend/
-    └── index.html       ← open this in browser
-```
+---
 
-## Setup (5 minutes)
+## Stack
 
-### Step 1: Get Spotify API Keys
-1. Go to https://developer.spotify.com/dashboard
-2. Log in with your Spotify account
-3. Click **"Create app"**
-4. Fill in: App name = "MoodMusic", Redirect URI = `http://localhost:8000`
-5. Copy your **Client ID** and **Client Secret**
+| Layer    | Tech                          |
+|----------|-------------------------------|
+| Backend  | FastAPI (Python)              |
+| API      | Spotify Web API               |
+| Frontend | Vanilla HTML/CSS/JS           |
+| Hosting  | Render (backend) · GitHub Pages (frontend) |
 
-### Step 2: Set up the backend
+---
+
+## Setup
+
+### 1. Get Spotify credentials
+
+1. Go to [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)
+2. Log in → **Create app**
+3. Name it anything. Set Redirect URI to `http://127.0.0.1:8000`
+4. Go to **Settings** → copy **Client ID** and **Client Secret**
+
+---
+
+### 2. Backend (Python 3.9+)
 
 ```bash
-cd backend
+# clone the repo
+git clone https://github.com/YOUR_USERNAME/moodmusic.git
+cd moodmusic
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate       # Mac/Linux
-# venv\Scripts\activate        # Windows
+# create virtual environment
+python -m venv venv
 
-# Install dependencies
+# activate it
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
+
+# install dependencies
 pip install -r requirements.txt
 
-# Create your .env file
-cp .env.example .env
-# Open .env and paste your Client ID and Client Secret
+# create your .env file
+copy .env.example .env     # Windows
+# OR
+cp .env.example .env       # Mac/Linux
 ```
 
-### Step 3: Run the backend
+Open `.env` and paste your credentials:
+
+```
+SPOTIFY_CLIENT_ID=your_client_id_here
+SPOTIFY_CLIENT_SECRET=your_client_secret_here
+```
+
+Start the server:
 
 ```bash
 uvicorn main:app --reload
 ```
 
-You should see: `Uvicorn running on http://127.0.0.1:8000`
+You should see:
+```
+INFO:     Uvicorn running on http://127.0.0.1:8000
+```
 
-Test it: open http://localhost:8000/recommend/happy in your browser.
+Test it: open `http://127.0.0.1:8000/recommend/happy` in your browser. You should see JSON with tracks.
 
-### Step 4: Open the frontend
+---
 
-Just open `frontend/index.html` in your browser. No build step needed!
+### 3. Frontend
 
-Make sure the API URL in the config box says `http://localhost:8000`.
+Just open `index.html` in your browser. That's it.
+
+Make sure the **API Endpoint** field in the bottom left of the sidebar says `http://127.0.0.1:8000`.
+
+---
 
 ## How it works
 
-The app maps each mood to Spotify audio features:
-- **Valence** — how positive/happy the song sounds (0.0–1.0)
-- **Energy** — intensity and activity level (0.0–1.0)
-- **Danceability** — rhythmic regularity (0.0–1.0)
+Each mood maps to target values for Spotify's audio features:
 
-These are passed to Spotify's `/recommendations` endpoint to get real, matching songs.
+| Mood       | Valence | Energy | Danceability |
+|------------|---------|--------|--------------|
+| Happy      | 0.85    | 0.75   | 0.70         |
+| Sad        | 0.15    | 0.30   | 0.35         |
+| Energetic  | 0.70    | 0.95   | 0.80         |
+| Chill      | 0.55    | 0.35   | 0.45         |
+| Focus      | 0.50    | 0.45   | 0.30         |
+| Angry      | 0.20    | 0.90   | 0.60         |
+| Romantic   | 0.75    | 0.40   | 0.55         |
+| Melancholic| 0.25    | 0.38   | 0.38         |
 
-## Moods supported
-| Mood | Valence | Energy | Danceability |
-|------|---------|--------|--------------|
-| Happy | 0.85 | 0.80 | 0.75 |
-| Sad | 0.15 | 0.25 | 0.30 |
-| Chill | 0.55 | 0.30 | 0.45 |
-| Energetic | 0.70 | 0.95 | 0.85 |
-| Focus | 0.50 | 0.45 | 0.30 |
-| Melancholy | 0.25 | 0.35 | 0.25 |
+These are sent to Spotify's `/v1/recommendations` endpoint which returns tracks matching those audio profiles.
 
-## Deploy (optional)
-- Backend: deploy to **Render** (free tier) → https://render.com
-- Frontend: deploy to **Vercel** or **GitHub Pages**
-- Update the API URL in `index.html` to your Render URL
+---
 
 ## API Endpoints
-- `GET /recommend/{mood}?limit=10` — get track recommendations
-- `GET /moods` — list all supported moods
+
+| Endpoint                        | Description                     |
+|---------------------------------|---------------------------------|
+| `GET /`                         | Health check                    |
+| `GET /moods`                    | List available moods            |
+| `GET /recommend/{mood}`         | Get tracks for a mood           |
+| `GET /recommend/{mood}?limit=N` | Control number of tracks (max 20) |
+
+---
+
+## Project Structure
+
+```
+moodmusic/
+├── main.py            # FastAPI backend
+├── requirements.txt   # Python dependencies
+├── .env.example       # Credential template
+├── index.html         # Frontend (single file)
+└── README.md
+```
+
+---
+
+## Contributors
+
+- [Chitranshi Singh](https://github.com/ciyachitranshi81)
+- [Syed Mohammad Fawaz](https://github.com/SMFawaz24)
