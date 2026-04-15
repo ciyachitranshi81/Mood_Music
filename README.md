@@ -1,4 +1,4 @@
-# MoodMusic 🎵
+# MoodMusic
 
 AI-powered mood-based music recommendations using the Spotify Web API.
 
