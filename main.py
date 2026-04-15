@@ -1,8 +1,9 @@
+import os
+import base64
+import random
+import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import httpx
-import base64
-import os
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,60 +13,58 @@ app = FastAPI(title="MoodMusic API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["*"],
+    allow_methods=["GET"],
     allow_headers=["*"],
 )
 
-CLIENT_ID = os.getenv("client_id")
-CLIENT_SECRET = os.getenv("client_secret")
+CLIENT_ID     = os.getenv("SPOTIFY_CLIENT_ID", "")
+CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET", "")
 
-# Mood → Spotify audio feature targets
-MOOD_PARAMS = {
+MOODS: dict[str, dict] = {
     "happy": {
-        "target_valence": 0.85,
-        "target_energy": 0.80,
-        "target_danceability": 0.75,
-        "seed_genres": "pop,happy,dance",
+        "queries": ["feel good hits", "happy upbeat", "good vibes pop", "sunshine pop", "feel good dance"],
+        "meta":    {"valence": 0.85, "energy": 0.75, "danceability": 0.70},
     },
     "sad": {
-        "target_valence": 0.15,
-        "target_energy": 0.25,
-        "target_danceability": 0.30,
-        "seed_genres": "sad,acoustic,indie",
-    },
-    "chill": {
-        "target_valence": 0.55,
-        "target_energy": 0.30,
-        "target_danceability": 0.45,
-        "seed_genres": "chill,lofi,ambient",
+        "queries": ["sad songs", "heartbreak acoustic", "emotional ballad", "sad indie", "crying playlist"],
+        "meta":    {"valence": 0.15, "energy": 0.30, "danceability": 0.35},
     },
     "energetic": {
-        "target_valence": 0.70,
-        "target_energy": 0.95,
-        "target_danceability": 0.85,
-        "seed_genres": "work-out,edm,power-pop",
+        "queries": ["workout hits", "high energy electronic", "pump up songs", "gym motivation", "high bpm dance"],
+        "meta":    {"valence": 0.70, "energy": 0.95, "danceability": 0.80},
+    },
+    "chill": {
+        "queries": ["chill vibes", "lo-fi chill", "relaxing indie", "afternoon chill", "mellow beats"],
+        "meta":    {"valence": 0.55, "energy": 0.35, "danceability": 0.45},
     },
     "focus": {
-        "target_valence": 0.50,
-        "target_energy": 0.45,
-        "target_danceability": 0.30,
-        "seed_genres": "study,classical,instrumental",
+        "queries": ["study music", "deep focus instrumental", "concentration music", "focus beats", "background study"],
+        "meta":    {"valence": 0.50, "energy": 0.45, "danceability": 0.30},
     },
-    "melancholy": {
-        "target_valence": 0.25,
-        "target_energy": 0.35,
-        "target_danceability": 0.25,
-        "seed_genres": "indie,emo,singer-songwriter",
+    "angry": {
+        "queries": ["metal rage", "hard rock intense", "anger release music", "heavy metal", "punk rock aggressive"],
+        "meta":    {"valence": 0.20, "energy": 0.90, "danceability": 0.60},
+    },
+    "romantic": {
+        "queries": ["love songs", "romantic r&b", "slow dance songs", "date night music", "romantic pop"],
+        "meta":    {"valence": 0.75, "energy": 0.40, "danceability": 0.55},
+    },
+    "melancholic": {
+        "queries": ["melancholic indie", "bittersweet songs", "nostalgic music", "sad beautiful songs", "melancholy folk"],
+        "meta":    {"valence": 0.25, "energy": 0.38, "danceability": 0.38},
     },
 }
 
 
-async def get_spotify_token() -> str:
-    credentials = f"{CLIENT_ID}:{CLIENT_SECRET}"
-    encoded = base64.b64encode(credentials.encode()).decode()
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
+async def get_token() -> str:
+    if not CLIENT_ID or not CLIENT_SECRET:
+        raise HTTPException(
+            status_code=500,
+            detail="Spotify credentials not set. Add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET to your .env file.",
+        )
+    encoded = base64.b64encode(f"{CLIENT_ID}:{CLIENT_SECRET}".encode()).decode()
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        r = await client.post(
             "https://accounts.spotify.com/api/token",
             headers={
                 "Authorization": f"Basic {encoded}",
@@ -73,85 +72,82 @@ async def get_spotify_token() -> str:
             },
             data={"grant_type": "client_credentials"},
         )
-
-    print("TOKEN STATUS:", response.status_code)
-    print("TOKEN BODY:", response.text)
-
-    if response.status_code != 200:
-        raise HTTPException(status_code=500, detail="Failed to get Spotify token")
-
-    return response.json()["access_token"]
-
-    if response.status_code != 200:
-        raise HTTPException(status_code=500, detail="Failed to get Spotify token")
-
-    return response.json()["access_token"]
+    if r.status_code != 200:
+        raise HTTPException(status_code=500, detail=f"Spotify token error: {r.text}")
+    return r.json()["access_token"]
 
 
-@app.get("/")
-def root():
-    return {"message": "MoodMusic API is running"}
-
-
-@app.get("/recommend/{mood}")
-async def recommend(mood: str, limit: int = 10):
-    mood = mood.lower()
-    if mood not in MOOD_PARAMS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unknown mood. Choose from: {', '.join(MOOD_PARAMS.keys())}",
-        )
-
-    token = await get_spotify_token()
-    params = MOOD_PARAMS[mood]
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.get(
-            "https://api.spotify.com/v1/recommendations",
-            headers={"Authorization": f"Bearer {token}"},
-            params={
-                "limit": limit,
-                "seed_genres": params["seed_genres"],
-                "target_valence": params["target_valence"],
-                "target_energy": params["target_energy"],
-                "target_danceability": params["target_danceability"],
-            },
-        )
-
-    if response.status_code != 200:
-        raise HTTPException(status_code=500, detail="Spotify API error")
-
-    tracks = response.json().get("tracks", [])
-
+def parse_track(t: dict) -> dict:
     return {
-        "mood": mood,
-        "tracks": [
-            {
-                "id": t["id"],
-                "name": t["name"],
-                "artist": t["artists"][0]["name"],
-                "album": t["album"]["name"],
-                "duration_ms": t["duration_ms"],
-                "preview_url": t.get("preview_url"),
-                "spotify_url": t["external_urls"]["spotify"],
-                "album_art": t["album"]["images"][0]["url"] if t["album"]["images"] else None,
-                "popularity": t["popularity"],
-            }
-            for t in tracks
-        ],
+        "id":          t["id"],
+        "name":        t["name"],
+        "artists":     [a["name"] for a in t["artists"]],
+        "album":       t["album"]["name"],
+        "album_art":   t["album"]["images"][0]["url"] if t["album"]["images"] else None,
+        "preview_url": t.get("preview_url"),
+        "spotify_url": t["external_urls"]["spotify"],
+        "duration_ms": t["duration_ms"],
     }
 
 
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": "MoodMusic API is running"}
+
+
 @app.get("/moods")
-def get_moods():
+async def list_moods():
+    return {"moods": list(MOODS.keys())}
+
+
+@app.get("/recommend/{mood}")
+async def recommend(mood: str, limit: int = 12):
+    if mood not in MOODS:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Unknown mood '{mood}'. Valid: {list(MOODS.keys())}",
+        )
+
+    token  = await get_token()
+    config = MOODS[mood]
+    limit  = min(limit, 20)
+
+    queries  = random.sample(config["queries"], k=min(2, len(config["queries"])))
+    seen_ids = set()
+    tracks   = []
+
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        for query in queries:
+            needed = limit - len(tracks)
+            if needed <= 0:
+                break
+
+            r = await client.get(
+                "https://api.spotify.com/v1/search",
+                headers={"Authorization": f"Bearer {token}"},
+                params={
+                    "q":     query,
+                    "type":  "track",
+                    "limit": min(needed + 5, 10),
+                },
+            )
+
+            if r.status_code != 200:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Spotify search error: {r.text}",
+                )
+
+            for item in r.json().get("tracks", {}).get("items", []):
+                if item["id"] not in seen_ids and len(tracks) < limit:
+                    seen_ids.add(item["id"])
+                    tracks.append(parse_track(item))
+
+    random.shuffle(tracks)
+
     return {
-        "moods": list(MOOD_PARAMS.keys()),
-        "descriptions": {
-            "happy": "Upbeat, positive, feel-good energy",
-            "sad": "Slow, emotional, reflective",
-            "chill": "Relaxed, mellow, easygoing",
-            "energetic": "High energy, pumped up, workout vibes",
-            "focus": "Calm, instrumental, concentration",
-            "melancholy": "Bittersweet, introspective, indie",
-        },
+        "mood":          mood,
+        "count":         len(tracks),
+        "audio_targets": config["meta"],
+        "tracks":        tracks,
     }
